@@ -10,14 +10,25 @@ import type { ThreadsApiStatusResult, ThreadsCollectResult } from "@/types/domai
 
 export function ThreadsCollectPanel({ initialStatus }: { initialStatus: ThreadsApiStatusResult }) {
   const [result, setResult] = useState<ThreadsCollectResult | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function collectPreviousDay() {
     setLoading(true);
+    setErrorMessage(null);
     try {
-      const response = await fetch("/api/buzz/collect", { method: "POST" });
-      const data = (await response.json()) as ThreadsCollectResult;
+      const response = await fetch("/api/buzz/collect", {
+        method: "POST",
+        credentials: "same-origin"
+      });
+      const data = (await response.json()) as ThreadsCollectResult & { error?: string };
+      if (!response.ok && !data.status) {
+        setErrorMessage(data.error ?? "前日投稿の収集に失敗しました。");
+        return;
+      }
       setResult(data);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "前日投稿の収集に失敗しました。");
     } finally {
       setLoading(false);
     }
@@ -48,19 +59,25 @@ export function ThreadsCollectPanel({ initialStatus }: { initialStatus: ThreadsA
         <div className="flex flex-wrap items-center gap-3">
           <Button type="button" onClick={collectPreviousDay} disabled={loading}>
             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-            前日投稿を収集
+            {loading ? "収集中..." : "前日投稿を収集"}
           </Button>
           <Link className="text-sm font-semibold text-violet-700 hover:text-violet-900" href="/import">
             手動インポートへ
           </Link>
         </div>
 
+        {errorMessage ? (
+          <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-700">
+            {errorMessage}
+          </div>
+        ) : null}
+
         {result ? (
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm">
+          <div className={`rounded-lg border p-4 text-sm ${result.ok ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
             <div className="flex flex-wrap gap-x-5 gap-y-2 text-slate-700">
               <span>対象: {formatDateTime(result.since)} - {formatDateTime(result.until)}</span>
               <span>最終収集: {formatDateTime(result.checkedAt)}</span>
-              <span>状態: {result.status}</span>
+              <span>状態: {getStatusLabel(result.status)}</span>
             </div>
             {result.lastError ? <p className="mt-3 font-semibold text-rose-700">最終エラー: {result.lastError}</p> : null}
             {result.fallbackMessage ? (
@@ -94,4 +111,14 @@ function formatDateTime(value: string) {
     minute: "2-digit",
     timeZone: "Asia/Tokyo"
   }).format(new Date(value));
+}
+
+function getStatusLabel(status: ThreadsCollectResult["status"]) {
+  const labels: Record<ThreadsCollectResult["status"], string> = {
+    collected: "収集完了",
+    fallback_required: "フォールバックが必要",
+    not_configured: "未設定",
+    error: "エラー"
+  };
+  return labels[status] ?? status;
 }
