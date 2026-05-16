@@ -31,6 +31,9 @@ export type ThreadsInsightMetrics = {
 };
 
 const THREADS_API_BASE_URL = "https://graph.threads.net/v1.0";
+const THREADS_OAUTH_BASE_URL = "https://threads.net/oauth/authorize";
+const THREADS_OAUTH_TOKEN_URL = "https://graph.threads.net/oauth/access_token";
+const THREADS_LONG_LIVED_TOKEN_URL = "https://graph.threads.net/access_token";
 
 export function getThreadsEnvStatus() {
   const accessToken = process.env.THREADS_ACCESS_TOKEN;
@@ -43,6 +46,58 @@ export function getThreadsEnvStatus() {
     userIdConfigured: Boolean(userId),
     maskedUserId: userId ? maskValue(userId) : null
   };
+}
+
+export function getThreadsRedirectUri() {
+  return process.env.THREADS_REDIRECT_URI || "https://uranai-threads-dashboard.vercel.app/api/threads/callback";
+}
+
+export function buildThreadsAuthorizeUrl(state: string) {
+  const appId = process.env.THREADS_APP_ID;
+  if (!appId) {
+    throw new ThreadsApiError("missing_env", "THREADS_APP_ID is missing");
+  }
+
+  const url = new URL(THREADS_OAUTH_BASE_URL);
+  url.searchParams.set("client_id", appId);
+  url.searchParams.set("redirect_uri", getThreadsRedirectUri());
+  url.searchParams.set("scope", "threads_basic,threads_content_publish,threads_keyword_search,threads_manage_insights");
+  url.searchParams.set("response_type", "code");
+  url.searchParams.set("state", state);
+  return url.toString();
+}
+
+export async function exchangeThreadsCodeForToken(code: string) {
+  const appId = process.env.THREADS_APP_ID;
+  const appSecret = process.env.THREADS_APP_SECRET;
+  if (!appId || !appSecret) {
+    throw new ThreadsApiError("missing_env", "THREADS_APP_ID or THREADS_APP_SECRET is missing");
+  }
+
+  const body = new URLSearchParams();
+  body.set("client_id", appId);
+  body.set("client_secret", appSecret);
+  body.set("grant_type", "authorization_code");
+  body.set("redirect_uri", getThreadsRedirectUri());
+  body.set("code", code);
+
+  const shortLivedPayload = await fetchThreads(new URL(THREADS_OAUTH_TOKEN_URL), "threads_oauth_token", { method: "POST", body });
+  const shortLivedToken = extractAccessToken(shortLivedPayload);
+  const longLivedToken = await exchangeForLongLivedToken(shortLivedToken, appSecret);
+
+  return {
+    shortLived: summarizeTokenPayload(shortLivedPayload),
+    longLived: summarizeTokenPayload(longLivedToken),
+    longLivedAccessToken: extractAccessToken(longLivedToken)
+  };
+}
+
+async function exchangeForLongLivedToken(shortLivedToken: string, appSecret: string) {
+  const url = new URL(THREADS_LONG_LIVED_TOKEN_URL);
+  url.searchParams.set("grant_type", "th_exchange_token");
+  url.searchParams.set("client_secret", appSecret);
+  url.searchParams.set("access_token", shortLivedToken);
+  return fetchThreads(url, "threads_long_lived_token");
 }
 
 export async function testThreadsConnection() {
@@ -189,6 +244,25 @@ function extractId(payload: unknown) {
     if (typeof id === "string" && id.trim()) return id;
   }
   throw new ThreadsApiError("api_error", "Threads API response did not include an id", undefined, payload);
+}
+
+function extractAccessToken(payload: unknown) {
+  if (payload && typeof payload === "object") {
+    const token = (payload as { access_token?: unknown }).access_token;
+    if (typeof token === "string" && token.trim()) return token;
+  }
+  throw new ThreadsApiError("api_error", "Threads API response did not include an access token", undefined, payload);
+}
+
+function summarizeTokenPayload(payload: unknown) {
+  if (!payload || typeof payload !== "object") return {};
+  const record = payload as Record<string, unknown>;
+  return {
+    token_type: typeof record.token_type === "string" ? record.token_type : null,
+    expires_in: typeof record.expires_in === "number" ? record.expires_in : null,
+    permissions: Array.isArray(record.permissions) ? record.permissions : undefined,
+    has_access_token: typeof record.access_token === "string" && record.access_token.length > 0
+  };
 }
 
 function normalizeInsightPayload(payload: unknown): ThreadsInsightMetrics {

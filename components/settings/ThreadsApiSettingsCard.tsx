@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, KeyRound, Loader2, Search, XCircle } from "lucide-react";
+import { CheckCircle2, KeyRound, Loader2, LogIn, Search, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -111,6 +111,12 @@ export function ThreadsApiSettingsCard({ initialStatus }: { initialStatus: Threa
             {loading === "keyword" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
             keyword_search テスト
           </Button>
+          <Button type="button" variant="outline" asChild>
+            <a href="/api/threads/authorize">
+              <LogIn className="mr-2 h-4 w-4" />
+              Threads OAuth認証
+            </a>
+          </Button>
         </div>
 
         {keywordResult ? (
@@ -144,7 +150,8 @@ export function ThreadsApiSettingsCard({ initialStatus }: { initialStatus: Threa
         ) : null}
 
         <p className="text-xs leading-5 text-slate-500">
-          Access Token と App Secret の値そのものは画面に表示しません。Phase 1〜6では環境変数をサーバー側で読み取り、DBにsecret平文を保存しません。
+          Redirect URI は https://uranai-threads-dashboard.vercel.app/api/threads/callback です。
+          Access Token と App Secret の値そのものは設定画面に表示しません。Phase 1〜6では環境変数をサーバー側で読み取り、DBにsecret平文を保存しません。
         </p>
       </CardContent>
     </Card>
