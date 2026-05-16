@@ -11,17 +11,35 @@ type KeywordSearchResult =
   | { ok: true; keyword: string; fetchedCount: number; samples: Array<{ textPreview: string; authorUsername: string | null }> }
   | { ok: false; status: string; message: string; fallbackMessage?: string };
 
+type ActionMessage = {
+  tone: "green" | "rose" | "amber";
+  title: string;
+  body: string;
+};
+
 export function ThreadsApiSettingsCard({ initialStatus }: { initialStatus: ThreadsApiStatusResult }) {
   const [status, setStatus] = useState(initialStatus);
   const [keywordResult, setKeywordResult] = useState<KeywordSearchResult | null>(null);
   const [loading, setLoading] = useState<"test" | "keyword" | null>(null);
+  const [message, setMessage] = useState<ActionMessage | null>(null);
 
   async function runConnectionTest() {
     setLoading("test");
+    setMessage(null);
     try {
-      const response = await fetch("/api/threads/test", { method: "POST" });
-      const result = (await response.json()) as ThreadsApiStatusResult;
+      const response = await fetch("/api/threads/test", {
+        method: "POST",
+        credentials: "same-origin"
+      });
+      const result = (await response.json()) as ThreadsApiStatusResult & { error?: string };
       setStatus(result);
+      setMessage(
+        result.ok
+          ? { tone: "green", title: "API接続テスト成功", body: "Threads APIのユーザー確認に成功しました。" }
+          : { tone: "rose", title: "API接続テスト失敗", body: result.message ?? result.error ?? "接続テストに失敗しました。" }
+      );
+    } catch (error) {
+      setMessage({ tone: "rose", title: "API接続テスト失敗", body: error instanceof Error ? error.message : "不明なエラーです。" });
     } finally {
       setLoading(null);
     }
@@ -29,14 +47,30 @@ export function ThreadsApiSettingsCard({ initialStatus }: { initialStatus: Threa
 
   async function runKeywordTest() {
     setLoading("keyword");
+    setKeywordResult(null);
+    setMessage(null);
     try {
       const response = await fetch("/api/threads/keyword-search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
         body: JSON.stringify({ keyword: "占い" })
       });
-      const result = (await response.json()) as KeywordSearchResult;
+      const result = (await response.json()) as KeywordSearchResult & { error?: string };
       setKeywordResult(result);
+      setMessage(
+        result.ok
+          ? { tone: "green", title: "keyword_search テスト成功", body: `${result.fetchedCount}件の取得結果を確認しました。` }
+          : {
+              tone: "amber",
+              title: "keyword_search は利用できませんでした",
+              body: result.message ?? result.error ?? "Threads APIの検索権限または仕様により取得できませんでした。"
+            }
+      );
+    } catch (error) {
+      const body = error instanceof Error ? error.message : "不明なエラーです。";
+      setKeywordResult({ ok: false, status: "error", message: body, fallbackMessage: "手動インポートまたはCSVインポートで分析を継続できます。" });
+      setMessage({ tone: "rose", title: "keyword_search テスト失敗", body });
     } finally {
       setLoading(null);
     }
@@ -65,9 +99,8 @@ export function ThreadsApiSettingsCard({ initialStatus }: { initialStatus: Threa
           <StatusItem label="最終確認" configured={connected} value={formatDateTime(status.checkedAt)} />
         </div>
 
-        {status.message ? (
-          <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{status.message}</div>
-        ) : null}
+        {status.message ? <Notice tone="amber" title="現在の状態" body={status.message} /> : null}
+        {message ? <Notice tone={message.tone} title={message.title} body={message.body} /> : null}
 
         <div className="flex flex-wrap gap-3">
           <Button type="button" onClick={runConnectionTest} disabled={loading !== null}>
@@ -99,11 +132,11 @@ export function ThreadsApiSettingsCard({ initialStatus }: { initialStatus: Threa
                 </div>
               </div>
             ) : (
-              <div className="flex gap-3 text-sm text-rose-700">
+              <div className="flex gap-3 text-sm text-amber-800">
                 <XCircle className="mt-0.5 h-4 w-4 shrink-0" />
                 <div>
                   <p className="font-semibold">{keywordResult.message}</p>
-                  <p className="mt-1 text-xs text-rose-600">{keywordResult.fallbackMessage}</p>
+                  <p className="mt-1 text-xs">{keywordResult.fallbackMessage ?? "手動インポートまたはCSVインポートで分析を継続できます。"}</p>
                 </div>
               </div>
             )}
@@ -111,7 +144,7 @@ export function ThreadsApiSettingsCard({ initialStatus }: { initialStatus: Threa
         ) : null}
 
         <p className="text-xs leading-5 text-slate-500">
-          Access TokenとApp Secretの値そのものは画面に表示しません。Phase 1〜6では環境変数をサーバー側で読み取り、DBにはsecret平文を保存しません。
+          Access Token と App Secret の値そのものは画面に表示しません。Phase 1〜6では環境変数をサーバー側で読み取り、DBにsecret平文を保存しません。
         </p>
       </CardContent>
     </Card>
@@ -126,6 +159,22 @@ function StatusItem({ label, configured, value }: { label: string; configured: b
         {configured ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : <XCircle className="h-4 w-4 text-slate-400" />}
         {value}
       </div>
+    </div>
+  );
+}
+
+function Notice({ tone, title, body }: ActionMessage) {
+  const className =
+    tone === "green"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+      : tone === "rose"
+        ? "border-rose-200 bg-rose-50 text-rose-800"
+        : "border-amber-200 bg-amber-50 text-amber-800";
+
+  return (
+    <div className={`rounded-md border px-4 py-3 text-sm ${className}`}>
+      <p className="font-bold">{title}</p>
+      <p className="mt-1">{body}</p>
     </div>
   );
 }

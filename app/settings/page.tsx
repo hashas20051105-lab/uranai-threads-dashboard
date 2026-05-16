@@ -12,7 +12,7 @@ export default async function SettingsPage() {
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-700">Settings</p>
         <h1 className="mt-2 text-2xl font-bold tracking-normal text-slate-950 md:text-3xl">設定</h1>
         <p className="mt-2 text-sm leading-6 text-slate-500">
-          Phase 4ではThreads APIの読み取り系接続状態だけを確認します。secret値は表示せず、投稿実行も行いません。
+          Threads APIの接続状態を確認します。secret値は画面に表示せず、投稿実行もここでは行いません。
         </p>
       </section>
 
