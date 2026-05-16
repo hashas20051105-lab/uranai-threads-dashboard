@@ -11,11 +11,14 @@ import type { ThreadsApiStatusResult, ThreadsCollectResult } from "@/types/domai
 export function ThreadsCollectPanel({ initialStatus }: { initialStatus: ThreadsApiStatusResult }) {
   const [result, setResult] = useState<ThreadsCollectResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string>("未実行");
   const [loading, setLoading] = useState(false);
 
-  async function collectPreviousDay() {
+  async function collectPreviousDay(event?: React.FormEvent<HTMLFormElement>) {
+    event?.preventDefault();
     setLoading(true);
     setErrorMessage(null);
+    setStatusMessage("収集リクエストを送信しています...");
     try {
       const response = await fetch("/api/buzz/collect", {
         method: "POST",
@@ -24,11 +27,14 @@ export function ThreadsCollectPanel({ initialStatus }: { initialStatus: ThreadsA
       const data = (await response.json()) as ThreadsCollectResult & { error?: string };
       if (!response.ok && !data.status) {
         setErrorMessage(data.error ?? "前日投稿の収集に失敗しました。");
+        setStatusMessage("収集に失敗しました");
         return;
       }
       setResult(data);
+      setStatusMessage(data.ok ? "収集結果を反映しました" : "収集結果を確認してください");
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "前日投稿の収集に失敗しました。");
+      setStatusMessage("通信エラーが発生しました");
     } finally {
       setLoading(false);
     }
@@ -56,14 +62,18 @@ export function ThreadsCollectPanel({ initialStatus }: { initialStatus: ThreadsA
           <Metric label="スキップ/エラー" value={result ? `${result.skippedCount} / ${result.errorCount}` : "-"} />
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <Button type="button" onClick={collectPreviousDay} disabled={loading}>
+        <form className="flex flex-wrap items-center gap-3" onSubmit={collectPreviousDay}>
+          <Button type="submit" disabled={loading}>
             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
             {loading ? "収集中..." : "前日投稿を収集"}
           </Button>
           <Link className="text-sm font-semibold text-violet-700 hover:text-violet-900" href="/import">
             手動インポートへ
           </Link>
+        </form>
+
+        <div aria-live="polite" className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700">
+          実行状態: {statusMessage}
         </div>
 
         {errorMessage ? (
