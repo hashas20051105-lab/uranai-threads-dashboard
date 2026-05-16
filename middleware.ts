@@ -5,6 +5,7 @@ import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from "@/lib/auth/admin-
 const protectedPages = [
   "/dashboard",
   "/buzz",
+  "/keywords",
   "/import",
   "/ideas",
   "/reservations",
@@ -15,7 +16,11 @@ const protectedPages = [
   "/settings",
   "/brand",
   "/calendar",
-  "/cta"
+  "/cta",
+  "/patterns",
+  "/hooks",
+  "/motifs",
+  "/post-types"
 ];
 
 const protectedApiPrefixes = [
