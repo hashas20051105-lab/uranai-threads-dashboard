@@ -34,7 +34,14 @@ const protectedApiPrefixes = [
   "/api/settings"
 ];
 
-const publicPrefixes = ["/login", "/api/auth", "/api/health"];
+const publicPrefixes = [
+  "/login",
+  "/api/auth",
+  "/api/health",
+  "/api/threads/callback",
+  "/api/threads/deauthorize",
+  "/api/threads/delete-data"
+];
 const cronProtectedPrefixes = ["/api/cron"];
 const cronProtectedPaths = ["/api/reservations/publish-due", "/api/insights/collect"];
 
