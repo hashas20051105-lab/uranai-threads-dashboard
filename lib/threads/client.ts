@@ -38,8 +38,8 @@ const THREADS_OAUTH_TOKEN_URL = "https://graph.threads.net/oauth/access_token";
 const THREADS_LONG_LIVED_TOKEN_URL = "https://graph.threads.net/access_token";
 
 export function getThreadsEnvStatus() {
-  const accessToken = process.env.THREADS_ACCESS_TOKEN;
-  const userId = process.env.THREADS_USER_ID;
+  const accessToken = readEnv("THREADS_ACCESS_TOKEN");
+  const userId = readEnv("THREADS_USER_ID");
 
   return {
     accessToken,
@@ -51,11 +51,11 @@ export function getThreadsEnvStatus() {
 }
 
 export function getThreadsRedirectUri() {
-  return process.env.THREADS_REDIRECT_URI || "https://uranai-threads-dashboard.vercel.app/api/threads/callback";
+  return readEnv("THREADS_REDIRECT_URI") || "https://uranai-threads-dashboard.vercel.app/api/threads/callback";
 }
 
 export function buildThreadsAuthorizeUrl(state: string) {
-  const appId = process.env.THREADS_APP_ID;
+  const appId = readEnv("THREADS_APP_ID");
   if (!appId) {
     throw new ThreadsApiError("missing_env", "THREADS_APP_ID is missing");
   }
@@ -70,8 +70,8 @@ export function buildThreadsAuthorizeUrl(state: string) {
 }
 
 export async function exchangeThreadsCodeForToken(code: string) {
-  const appId = process.env.THREADS_APP_ID;
-  const appSecret = process.env.THREADS_APP_SECRET;
+  const appId = readEnv("THREADS_APP_ID");
+  const appSecret = readEnv("THREADS_APP_SECRET");
   if (!appId || !appSecret) {
     throw new ThreadsApiError("missing_env", "THREADS_APP_ID or THREADS_APP_SECRET is missing");
   }
@@ -327,6 +327,13 @@ function classifyStatus(status: number) {
 function maskValue(value: string) {
   if (value.length <= 6) return "***";
   return `${value.slice(0, 3)}****${value.slice(-3)}`;
+}
+
+function readEnv(name: string) {
+  const raw = process.env[name];
+  if (!raw) return undefined;
+  const trimmed = raw.trim();
+  return trimmed.replace(/^["']|["']$/g, "").trim();
 }
 
 export class ThreadsApiError extends Error {
