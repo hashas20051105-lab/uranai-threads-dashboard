@@ -14,16 +14,17 @@ export async function GET(request: NextRequest) {
   const expectedState = request.cookies.get(STATE_COOKIE)?.value;
 
   if (error) {
+    const message = redactSecrets(errorDescription || error);
     await saveErrorLog({
       source: "threads_oauth_callback",
       route: "app/api/threads/callback",
       errorType: "oauth_denied",
-      message: errorDescription || error
+      message
     });
     return renderCallbackPage({
       ok: false,
       title: "Threads OAuth がキャンセルされました",
-      message: errorDescription || error
+      message
     });
   }
 
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
     return renderCallbackPage({
       ok: false,
       title: "認証コードがありません",
-      message: "Metaから code が返ってきませんでした。リダイレクトURL設定を確認してください。"
+      message: "Metaから code が返ってきませんでした。リダイレクトURI設定を確認してください。"
     });
   }
 
@@ -54,8 +55,7 @@ export async function GET(request: NextRequest) {
     const response = renderCallbackPage({
       ok: true,
       title: "Threads OAuth 認証に成功しました",
-      message: "長期アクセストークンを取得しました。下のトークンをVercelの THREADS_ACCESS_TOKEN に設定してください。",
-      token: tokenResult.longLivedAccessToken,
+      message: "長期アクセストークンを取得できました。セキュリティ保護のため、トークン文字列は画面に表示しません。",
       summary: tokenResult.longLived
     });
     response.cookies.delete(STATE_COOKIE);
@@ -80,13 +80,8 @@ export async function POST() {
   return NextResponse.json({ ok: true, status: "ready", endpoint: "threads_callback" });
 }
 
-function renderCallbackPage(input: { ok: boolean; title: string; message: string; token?: string; summary?: unknown }) {
-  const tokenBlock = input.token
-    ? `<div class="token"><p>THREADS_ACCESS_TOKEN</p><textarea readonly>${escapeHtml(input.token)}</textarea></div>`
-    : "";
-  const summaryBlock = input.summary
-    ? `<pre>${escapeHtml(JSON.stringify(input.summary, null, 2))}</pre>`
-    : "";
+function renderCallbackPage(input: { ok: boolean; title: string; message: string; summary?: unknown }) {
+  const summaryBlock = input.summary ? `<pre>${escapeHtml(JSON.stringify(input.summary, null, 2))}</pre>` : "";
 
   return new NextResponse(
     `<!doctype html>
@@ -101,10 +96,8 @@ function renderCallbackPage(input: { ok: boolean; title: string; message: string
       .badge { display: inline-block; border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 700; background: ${input.ok ? "#dcfce7" : "#fee2e2"}; color: ${input.ok ? "#166534" : "#991b1b"}; }
       h1 { font-size: 24px; margin: 18px 0 8px; }
       p { line-height: 1.7; }
-      textarea { width: 100%; min-height: 140px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; }
       pre { overflow: auto; border-radius: 8px; background: #f1f5f9; padding: 12px; }
       a { color: #6d28d9; font-weight: 700; }
-      .token { margin-top: 22px; }
     </style>
   </head>
   <body>
@@ -112,7 +105,6 @@ function renderCallbackPage(input: { ok: boolean; title: string; message: string
       <span class="badge">${input.ok ? "成功" : "要確認"}</span>
       <h1>${escapeHtml(input.title)}</h1>
       <p>${escapeHtml(input.message)}</p>
-      ${tokenBlock}
       ${summaryBlock}
       <p><a href="/settings">設定画面へ戻る</a></p>
     </main>
