@@ -1,4 +1,5 @@
 import { DEFAULT_USER_ID } from "@/lib/constants";
+import { redactSecrets } from "@/lib/security/redact";
 import { createServiceRoleSupabaseClient } from "@/lib/supabase/server";
 
 type ErrorLogInput = {
@@ -19,7 +20,7 @@ export async function saveErrorLog(input: ErrorLogInput) {
     route: input.route ?? null,
     severity: "error",
     error_type: input.errorType,
-    message: input.message,
+    message: redactSecrets(input.message),
     details: sanitizeDetails(input.details ?? {})
   });
 }

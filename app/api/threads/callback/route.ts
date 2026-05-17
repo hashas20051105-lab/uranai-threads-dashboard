@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { redactSecrets } from "@/lib/security/redact";
 import { exchangeThreadsCodeForToken } from "@/lib/threads/client";
 import { saveErrorLog } from "@/services/error-log-service";
 
@@ -60,7 +61,7 @@ export async function GET(request: NextRequest) {
     response.cookies.delete(STATE_COOKIE);
     return response;
   } catch (caught) {
-    const message = caught instanceof Error ? caught.message : "Threads OAuth token exchange failed";
+    const message = redactSecrets(caught instanceof Error ? caught.message : "Threads OAuth token exchange failed");
     await saveErrorLog({
       source: "threads_oauth_callback",
       route: "app/api/threads/callback",

@@ -1,3 +1,5 @@
+import { redactSecrets } from "@/lib/security/redact";
+
 export type ThreadsKeywordSearchParams = {
   keyword: string;
   since: string;
@@ -310,9 +312,9 @@ function numberFromUnknown(value: unknown) {
 function extractMessage(payload: unknown, fallback: string) {
   if (payload && typeof payload === "object" && "error" in payload) {
     const error = (payload as { error?: { message?: string } }).error;
-    return error?.message ?? fallback;
+    return redactSecrets(error?.message ?? fallback);
   }
-  return fallback;
+  return redactSecrets(fallback);
 }
 
 function classifyStatus(status: number) {
