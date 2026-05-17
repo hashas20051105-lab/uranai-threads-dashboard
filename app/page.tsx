@@ -22,6 +22,17 @@ export default function HomePage() {
           ダッシュボードを開く
           <ArrowRight className="h-4 w-4" />
         </Link>
+        <div className="mt-5 flex flex-wrap gap-4 text-xs font-bold text-slate-500">
+          <Link className="hover:text-violet-700" href="/privacy">
+            Privacy Policy
+          </Link>
+          <Link className="hover:text-violet-700" href="/terms">
+            Terms of Use
+          </Link>
+          <Link className="hover:text-violet-700" href="/app-review">
+            App Review Notes
+          </Link>
+        </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
