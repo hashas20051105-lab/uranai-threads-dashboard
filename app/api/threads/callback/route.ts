@@ -75,6 +75,10 @@ export async function GET(request: NextRequest) {
   }
 }
 
+export async function POST() {
+  return NextResponse.json({ ok: true, status: "ready", endpoint: "threads_callback" });
+}
+
 function renderCallbackPage(input: { ok: boolean; title: string; message: string; token?: string; summary?: unknown }) {
   const tokenBlock = input.token
     ? `<div class="token"><p>THREADS_ACCESS_TOKEN</p><textarea readonly>${escapeHtml(input.token)}</textarea></div>`
