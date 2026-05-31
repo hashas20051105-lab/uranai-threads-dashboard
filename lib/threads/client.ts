@@ -76,14 +76,14 @@ export async function exchangeThreadsCodeForToken(code: string) {
     throw new ThreadsApiError("missing_env", "THREADS_APP_ID or THREADS_APP_SECRET is missing");
   }
 
-  const body = new URLSearchParams();
-  body.set("client_id", appId);
-  body.set("client_secret", appSecret);
-  body.set("grant_type", "authorization_code");
-  body.set("redirect_uri", getThreadsRedirectUri());
-  body.set("code", code);
+  const tokenUrl = new URL(THREADS_OAUTH_TOKEN_URL);
+  tokenUrl.searchParams.set("client_id", appId);
+  tokenUrl.searchParams.set("client_secret", appSecret);
+  tokenUrl.searchParams.set("grant_type", "authorization_code");
+  tokenUrl.searchParams.set("redirect_uri", getThreadsRedirectUri());
+  tokenUrl.searchParams.set("code", code);
 
-  const shortLivedPayload = await fetchThreads(new URL(THREADS_OAUTH_TOKEN_URL), "threads_oauth_token", { method: "POST", body });
+  const shortLivedPayload = await fetchThreads(tokenUrl, "threads_oauth_token", { method: "POST" });
   const shortLivedToken = extractAccessToken(shortLivedPayload);
   const longLivedToken = await exchangeForLongLivedToken(shortLivedToken, appSecret);
 
